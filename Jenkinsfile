@@ -68,7 +68,7 @@ pipeline {
                         "C:\\Windows\\System32\\OpenSSH\\scp.exe" -i "%SSH_KEY%" -o StrictHostKeyChecking=accept-new Dockerfile index.html %SSH_USER%@%EC2_HOST%:/home/ubuntu/Devops-CI-CD-Project/
 
                         echo Building Docker image on EC2...
-                        "C:\\Windows\\System32\\OpenSSH\\ssh.exe" -i "%SSH_KEY%" -o StrictHostKeyChecking=accept-new %SSH_USER%@%EC2_HOST% "cd /home/ubuntu/Devops-CI-CD-Project && sudo docker build -t devops-cicd-website:%BUILD_NUMBER% . && (sudo docker rm -f devops-cicd-container || true) && sudo docker run -d --name devops-cicd-container -p 8083:80 devops-cicd-website:%BUILD_NUMBER% && curl -f http://localhost:8083"
+                        "C:\\Windows\\System32\\OpenSSH\\ssh.exe" -i "%SSH_KEY%" -o StrictHostKeyChecking=accept-new %SSH_USER%@%EC2_HOST% "cd /home/ubuntu/Devops-CI-CD-Project && sudo docker build -t devops-cicd-website:%BUILD_NUMBER% . && (sudo docker rm -f devops-cicd-container || true) && sudo docker run -d --name devops-cicd-container -p 8083:80 devops-cicd-website:%BUILD_NUMBER% for i in $(seq 1 10); do if curl -fsS http://localhost:8083; then echo "Website is responding successfully!"; exit 0; fi; echo "Waiting for Nginx..."; sleep 2; done; echo "Website health check failed"; exit 1"
                     '''
                 }
             }
