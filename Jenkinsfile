@@ -24,6 +24,7 @@ pipeline {
             steps {
                 echo 'Testing project files'
                 bat 'if exist index.html (echo HTML file found) else (exit /b 1)'
+                bat 'if exist Dockerfile (echo Dockerfile found) else (exit /b 1)'
             }
         }
 
@@ -37,12 +38,37 @@ pipeline {
                     )
                 ]) {
                     bat '''
-                        echo Securing temporary SSH key permissions...
                         icacls "%SSH_KEY%" /inheritance:r
                         icacls "%SSH_KEY%" /grant:r "SYSTEM:F"
 
-                        echo Connecting to AWS EC2...
                         "C:\\Windows\\System32\\OpenSSH\\ssh.exe" -i "%SSH_KEY%" -o StrictHostKeyChecking=accept-new %SSH_USER%@%EC2_HOST% "hostname && sudo -n docker ps"
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy to EC2') {
+            steps {
+                withCredentials([
+                    sshUserPrivateKey(
+                        credentialsId: 'ec2-ssh-key',
+                        keyFileVariable: 'SSH_KEY',
+                        usernameVariable: 'SSH_USER'
+                    )
+                ]) {
+                    bat '''
+                        echo Securing SSH key...
+                        icacls "%SSH_KEY%" /inheritance:r
+                        icacls "%SSH_KEY%" /grant:r "SYSTEM:F"
+
+                        echo Creating remote project directory...
+                        "C:\\Windows\\System32\\OpenSSH\\ssh.exe" -i "%SSH_KEY%" -o StrictHostKeyChecking=accept-new %SSH_USER%@%EC2_HOST% "mkdir -p /home/ubuntu/Devops-CI-CD-Project"
+
+                        echo Transferring project files to EC2...
+                        "C:\\Windows\\System32\\OpenSSH\\scp.exe" -i "%SSH_KEY%" -o StrictHostKeyChecking=accept-new Dockerfile index.html %SSH_USER%@%EC2_HOST%:/home/ubuntu/Devops-CI-CD-Project/
+
+                        echo Building Docker image on EC2...
+                        "C:\\Windows\\System32\\OpenSSH\\ssh.exe" -i "%SSH_KEY%" -o StrictHostKeyChecking=accept-new %SSH_USER%@%EC2_HOST% "cd /home/ubuntu/Devops-CI-CD-Project && sudo docker build -t devops-cicd-website:%BUILD_NUMBER% . && (sudo docker rm -f devops-cicd-container || true) && sudo docker run -d --name devops-cicd-container -p 8083:80 devops-cicd-website:%BUILD_NUMBER% && curl -f http://localhost:8083"
                     '''
                 }
             }
